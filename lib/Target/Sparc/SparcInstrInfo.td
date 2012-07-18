@@ -412,7 +412,7 @@ def STDFri  : F3_2<3, 0b100111,
 // Section B.9 - SETHI Instruction, p. 104
 def SETHIi: F2_1<0b100,
                  (outs IntRegs:$dst), (ins i32imm:$src),
-                 "sethi $src, $dst",
+                 "$dst = $src",
                  [(set IntRegs:$dst, SETHIimm:$src)]>;
 
 // Section B.10 - NOP Instruction, p. 105
