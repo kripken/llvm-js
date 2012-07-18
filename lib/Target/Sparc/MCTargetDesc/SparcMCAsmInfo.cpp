@@ -19,25 +19,21 @@ using namespace llvm;
 void SparcELFMCAsmInfo::anchor() { }
 
 SparcELFMCAsmInfo::SparcELFMCAsmInfo(const Target &T, StringRef TT) {
-  IsLittleEndian = false;
-  Triple TheTriple(TT);
-  if (TheTriple.getArch() == Triple::sparcv9)
-    PointerSize = 8;
+  IsLittleEndian = true;
 
   Data16bitsDirective = "\t.half\t";
   Data32bitsDirective = "\t.word\t";
   Data64bitsDirective = 0;  // .xword is only supported by V9.
   ZeroDirective = "\t.skip\t";
-  CommentString = "!";
-  HasLEB128 = true;
-  SupportsDebugInformation = true;
+  CommentString = "//";
+  SupportsDebugInformation = false;
   
   SunStyleELFSectionSwitchSyntax = true;
   UsesELFSectionDirectiveForBSS = true;
 
   WeakRefDirective = "\t.weak\t";
 
-  PrivateGlobalPrefix = ".L";
+  PrivateGlobalPrefix = "_";
 }
 
 
