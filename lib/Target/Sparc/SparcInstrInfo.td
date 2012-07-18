@@ -384,21 +384,21 @@ def STHri : F3_2<3, 0b000110,
                  [(truncstorei16 IntRegs:$src, ADDRri:$addr)]>;
 def STrr  : F3_1<3, 0b000100,
                  (outs), (ins MEMrr:$addr, IntRegs:$src),
-                 "st $src, [$addr]",
+                 "HEAP32[$addr] = $src",
                  [(store IntRegs:$src, ADDRrr:$addr)]>;
 def STri  : F3_2<3, 0b000100,
                  (outs), (ins MEMri:$addr, IntRegs:$src),
-                 "st $src, [$addr]",
+                 "HEAP32[$addr] = $src",
                  [(store IntRegs:$src, ADDRri:$addr)]>;
 
 // Section B.5 - Store Floating-point Instructions, p. 97
 def STFrr   : F3_1<3, 0b100100,
                    (outs), (ins MEMrr:$addr, FPRegs:$src),
-                   "st $src, [$addr]",
+                   "HEAPF32[$addr] = $src",
                    [(store FPRegs:$src, ADDRrr:$addr)]>;
 def STFri   : F3_2<3, 0b100100,
                    (outs), (ins MEMri:$addr, FPRegs:$src),
-                   "st $src, [$addr]",
+                   "HEAPF32[$addr] = $src",
                    [(store FPRegs:$src, ADDRri:$addr)]>;
 def STDFrr  : F3_1<3, 0b100111,
                    (outs), (ins MEMrr:$addr, DFPRegs:$src),
