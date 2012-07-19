@@ -181,11 +181,11 @@ def FCC_O   : FCC_VAL<29>;  // Ordered
 multiclass F3_12<string OpcStr, bits<6> Op3Val, SDNode OpNode> {
   def rr  : F3_1<2, Op3Val, 
                  (outs IntRegs:$dst), (ins IntRegs:$b, IntRegs:$c),
-                 !strconcat(OpcStr, " $b, $c, $dst"),
+                 !strconcat("$dst = $b ", OpcStr, " $c"),
                  [(set IntRegs:$dst, (OpNode IntRegs:$b, IntRegs:$c))]>;
   def ri  : F3_2<2, Op3Val,
                  (outs IntRegs:$dst), (ins IntRegs:$b, i32imm:$c),
-                 !strconcat(OpcStr, " $b, $c, $dst"),
+                 !strconcat("$dst = $b ", OpcStr, " $c"),
                  [(set IntRegs:$dst, (OpNode IntRegs:$b, simm13:$c))]>;
 }
 
@@ -194,10 +194,10 @@ multiclass F3_12<string OpcStr, bits<6> Op3Val, SDNode OpNode> {
 multiclass F3_12np<string OpcStr, bits<6> Op3Val> {
   def rr  : F3_1<2, Op3Val, 
                  (outs IntRegs:$dst), (ins IntRegs:$b, IntRegs:$c),
-                 !strconcat(OpcStr, " $b, $c, $dst"), []>;
+                 !strconcat("$dst = $b ", OpcStr, " $c"), []>;
   def ri  : F3_2<2, Op3Val,
                  (outs IntRegs:$dst), (ins IntRegs:$b, i32imm:$c),
-                 !strconcat(OpcStr, " $b, $c, $dst"), []>;
+                 !strconcat("$dst = $b ", OpcStr, " $c"), []>;
 }
 
 //===----------------------------------------------------------------------===//
