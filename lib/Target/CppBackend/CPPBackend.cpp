@@ -431,33 +431,34 @@ std::string CppWriter::getCppName(const Value* val) {
   if (I != ValueNames.end() && I->first == val)
     return  I->second;
 
-  if (const GlobalVariable* GV = dyn_cast<GlobalVariable>(val)) {
-    name = std::string("gvar_") +
-      getTypePrefix(GV->getType()->getElementType());
-  } else if (isa<Function>(val)) {
-    name = std::string("func_");
-  } else if (const Constant* C = dyn_cast<Constant>(val)) {
-    name = std::string("const_") + getTypePrefix(C->getType());
-  } else if (const Argument* Arg = dyn_cast<Argument>(val)) {
-    if (is_inline) {
-      unsigned argNum = std::distance(Arg->getParent()->arg_begin(),
-                                      Function::const_arg_iterator(Arg)) + 1;
-      name = std::string("arg_") + utostr(argNum);
-      NameSet::iterator NI = UsedNames.find(name);
-      if (NI != UsedNames.end())
-        name += std::string("_") + utostr(uniqueNum++);
-      UsedNames.insert(name);
-      return ValueNames[val] = name;
+  if (val->hasName())
+    name = "_" + val->getName();
+  else {
+    if (const GlobalVariable* GV = dyn_cast<GlobalVariable>(val)) {
+      name = std::string("gvar_") +
+        getTypePrefix(GV->getType()->getElementType());
+    } else if (isa<Function>(val)) {
+      name = std::string("func_");
+    } else if (const Constant* C = dyn_cast<Constant>(val)) {
+      name = std::string("const_") + getTypePrefix(C->getType());
+    } else if (const Argument* Arg = dyn_cast<Argument>(val)) {
+      if (is_inline) {
+        unsigned argNum = std::distance(Arg->getParent()->arg_begin(),
+                                        Function::const_arg_iterator(Arg)) + 1;
+        name = std::string("arg_") + utostr(argNum);
+        NameSet::iterator NI = UsedNames.find(name);
+        if (NI != UsedNames.end())
+          name += std::string("_") + utostr(uniqueNum++);
+        UsedNames.insert(name);
+        return ValueNames[val] = name;
+      } else {
+        name = getTypePrefix(val->getType());
+      }
     } else {
       name = getTypePrefix(val->getType());
     }
-  } else {
-    name = getTypePrefix(val->getType());
-  }
-  if (val->hasName())
-    name += val->getName();
-  else
     name += utostr(uniqueNum++);
+  }
   sanitize(name);
   NameSet::iterator NI = UsedNames.find(name);
   if (NI != UsedNames.end())
@@ -1215,7 +1216,7 @@ std::string CppWriter::generateInstruction(const Instruction *I) {
     break;
   }
   case Instruction::Store: {
-    text = "HEAP32[" + opNames[0] + ">>2] = " + opNames[1] + ";";
+    text = "HEAP32[" + opNames[1] + ">>2] = " + opNames[0] + ";";
     break;
   }
   case Instruction::GetElementPtr: {
