@@ -432,7 +432,7 @@ std::string CppWriter::getCppName(const Value* val) {
     return  I->second;
 
   if (val->hasName())
-    name = "_" + val->getName();
+    name = std::string("_") + val->getName().str();
   else {
     if (const GlobalVariable* GV = dyn_cast<GlobalVariable>(val)) {
       name = std::string("gvar_") +
