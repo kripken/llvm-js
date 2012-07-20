@@ -710,20 +710,16 @@ void CppWriter::printConstant(const Constant *CV) {
   std::string constName(getCppName(CV));
   std::string typeName(getCppName(CV->getType()));
 
+  Out << "var " << constName << " = ";
+
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
     std::string constValue = CI->getValue().toString(10, true);
-    Out << "ConstantInt* " << constName
-        << " = ConstantInt::get(mod->getContext(), APInt("
-        << cast<IntegerType>(CI->getType())->getBitWidth()
-        << ", StringRef(\"" <<  constValue << "\"), 10));";
+    Out << constValue << ";";
   } else if (isa<ConstantAggregateZero>(CV)) {
-    Out << "ConstantAggregateZero* " << constName
-        << " = ConstantAggregateZero::get(" << typeName << ");";
+    Out << "ConstantAggregateZero::get(" << typeName << ");";
   } else if (isa<ConstantPointerNull>(CV)) {
-    Out << "ConstantPointerNull* " << constName
-        << " = ConstantPointerNull::get(" << typeName << ");";
+    Out << "ConstantPointerNull::get(" << typeName << ");";
   } else if (const ConstantFP *CFP = dyn_cast<ConstantFP>(CV)) {
-    Out << "ConstantFP* " << constName << " = ";
     printCFP(CFP);
     Out << ";";
   } else if (const ConstantArray *CA = dyn_cast<ConstantArray>(CV)) {
@@ -768,20 +764,13 @@ void CppWriter::printConstant(const Constant *CV) {
   } else if (const ConstantDataSequential *CDS =
                dyn_cast<ConstantDataSequential>(CV)) {
     if (CDS->isString()) {
-      Out << "Constant *" << constName <<
-      " = ConstantDataArray::getString(mod->getContext(), \"";
+      Out << "allocate([";
       StringRef Str = CDS->getAsString();
-      bool nullTerminate = false;
-      if (Str.back() == 0) {
-        Str = Str.drop_back();
-        nullTerminate = true;
+      for (unsigned int i = 0; i < Str.size(); i++) {
+        Out << (unsigned int)(Str.data()[i]);
+        if (i < Str.size()-1) Out << ",";
       }
-      printEscapedString(Str);
-      // Determine if we want null termination or not.
-      if (nullTerminate)
-        Out << "\", true);";
-      else
-        Out << "\", false);";// No null terminator
+      Out << "], 'i8', ALLOC_STATIC);";
     } else {
       // TODO: Could generate more efficient code generating CDS calls instead.
       Out << "std::vector<Constant*> " << constName << "_elems;";
@@ -802,19 +791,12 @@ void CppWriter::printConstant(const Constant *CV) {
     }
   } else if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CV)) {
     if (CE->getOpcode() == Instruction::GetElementPtr) {
-      Out << "std::vector<Constant*> " << constName << "_indices;";
-      nl(Out);
-      printConstant(CE->getOperand(0));
-      for (unsigned i = 1; i < CE->getNumOperands(); ++i ) {
-        printConstant(CE->getOperand(i));
-        Out << constName << "_indices.push_back("
-            << getCppName(CE->getOperand(i)) << ");";
-        nl(Out);
+      Out << "allocate([";
+      for (unsigned i = 0; i < CE->getNumOperands(); ++i ) {
+        Out << getCppName(CE->getOperand(i));
+        if (i < CE->getNumOperands()-1) Out << ",";
       }
-      Out << "Constant* " << constName
-          << " = ConstantExpr::getGetElementPtr("
-          << getCppName(CE->getOperand(0)) << ", "
-          << constName << "_indices);";
+      Out << "], 'i32', ALLOC_STATIC);";
     } else if (CE->isCast()) {
       printConstant(CE->getOperand(0));
       Out << "Constant* " << constName << " = ConstantExpr::getCast(";
@@ -958,8 +940,8 @@ void CppWriter::printVariableHead(const GlobalVariable *GV) {
 void CppWriter::printVariableBody(const GlobalVariable *GV) {
   if (GV->hasInitializer()) {
     printCppName(GV);
-    Out << "->setInitializer(";
-    Out << getCppName(GV->getInitializer()) << ");";
+    Out << " = ";
+    Out << getCppName(GV->getInitializer()) << ";";
     nl(Out);
   }
 }
