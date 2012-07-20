@@ -1,3 +1,3 @@
-./configure --enable-targets=x86,sparc
+./configure --enable-targets=x86,sparc,cpp
 make
 

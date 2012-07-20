@@ -947,26 +947,6 @@ void CppWriter::printConstants(const Module* M) {
 }
 
 void CppWriter::printVariableUses(const GlobalVariable *GV) {
-  nl(Out) << "// Type Definitions";
-  nl(Out);
-  printType(GV->getType());
-  if (GV->hasInitializer()) {
-    const Constant *Init = GV->getInitializer();
-    printType(Init->getType());
-    if (const Function *F = dyn_cast<Function>(Init)) {
-      nl(Out)<< "/ Function Declarations"; nl(Out);
-      printFunctionHead(F);
-    } else if (const GlobalVariable* gv = dyn_cast<GlobalVariable>(Init)) {
-      nl(Out) << "// Global Variable Declarations"; nl(Out);
-      printVariableHead(gv);
-      
-      nl(Out) << "// Global Variable Definitions"; nl(Out);
-      printVariableBody(gv);
-    } else  {
-      nl(Out) << "// Constant Definitions"; nl(Out);
-      printConstant(Init);
-    }
-  }
 }
 
 void CppWriter::printVariableHead(const GlobalVariable *GV) {
@@ -1887,71 +1867,12 @@ void CppWriter::printModuleBody() {
 
 void CppWriter::printProgram(const std::string& fname,
                              const std::string& mName) {
-  Out << "#include <llvm/LLVMContext.h>\n";
-  Out << "#include <llvm/Module.h>\n";
-  Out << "#include <llvm/DerivedTypes.h>\n";
-  Out << "#include <llvm/Constants.h>\n";
-  Out << "#include <llvm/GlobalVariable.h>\n";
-  Out << "#include <llvm/Function.h>\n";
-  Out << "#include <llvm/CallingConv.h>\n";
-  Out << "#include <llvm/BasicBlock.h>\n";
-  Out << "#include <llvm/Instructions.h>\n";
-  Out << "#include <llvm/InlineAsm.h>\n";
-  Out << "#include <llvm/Support/FormattedStream.h>\n";
-  Out << "#include <llvm/Support/MathExtras.h>\n";
-  Out << "#include <llvm/Pass.h>\n";
-  Out << "#include <llvm/PassManager.h>\n";
-  Out << "#include <llvm/ADT/SmallVector.h>\n";
-  Out << "#include <llvm/Analysis/Verifier.h>\n";
-  Out << "#include <llvm/Assembly/PrintModulePass.h>\n";
-  Out << "#include <algorithm>\n";
-  Out << "using namespace llvm;\n\n";
-  Out << "Module* " << fname << "();\n\n";
-  Out << "int main(int argc, char**argv) {\n";
-  Out << "  Module* Mod = " << fname << "();\n";
-  Out << "  verifyModule(*Mod, PrintMessageAction);\n";
-  Out << "  PassManager PM;\n";
-  Out << "  PM.add(createPrintModulePass(&outs()));\n";
-  Out << "  PM.run(*Mod);\n";
-  Out << "  return 0;\n";
-  Out << "}\n\n";
   printModule(fname,mName);
 }
 
 void CppWriter::printModule(const std::string& fname,
                             const std::string& mName) {
-  nl(Out) << "Module* " << fname << "() {";
-  nl(Out,1) << "// Module Construction";
-  nl(Out) << "Module* mod = new Module(\"";
-  printEscapedString(mName);
-  Out << "\", getGlobalContext());";
-  if (!TheModule->getTargetTriple().empty()) {
-    nl(Out) << "mod->setDataLayout(\"" << TheModule->getDataLayout() << "\");";
-  }
-  if (!TheModule->getTargetTriple().empty()) {
-    nl(Out) << "mod->setTargetTriple(\"" << TheModule->getTargetTriple()
-            << "\");";
-  }
-
-  if (!TheModule->getModuleInlineAsm().empty()) {
-    nl(Out) << "mod->setModuleInlineAsm(\"";
-    printEscapedString(TheModule->getModuleInlineAsm());
-    Out << "\");";
-  }
-  nl(Out);
-
-  // Loop over the dependent libraries and emit them.
-  Module::lib_iterator LI = TheModule->lib_begin();
-  Module::lib_iterator LE = TheModule->lib_end();
-  while (LI != LE) {
-    Out << "mod->addLibrary(\"" << *LI << "\");";
-    nl(Out);
-    ++LI;
-  }
   printModuleBody();
-  nl(Out) << "return mod;";
-  nl(Out,-1) << "}";
-  nl(Out);
 }
 
 void CppWriter::printContents(const std::string& fname,
