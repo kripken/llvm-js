@@ -38,6 +38,8 @@
 #include <set>
 using namespace llvm;
 
+#include <Relooper.h>
+
 static cl::opt<std::string>
 FuncName("cppfname", cl::desc("Specify the name of the generated function"),
          cl::value_desc("function name"));
@@ -155,7 +157,7 @@ namespace {
     void printFunctionUses(const Function *F);
     void printFunctionHead(const Function *F);
     void printFunctionBody(const Function *F);
-    void printInstruction(const Instruction *I, const std::string& bbname);
+    std::string generateInstruction(const Instruction *I);
     std::string getOpName(const Value*);
 
     void printModuleBody();
@@ -990,9 +992,10 @@ static StringRef ConvertAtomicSynchScope(SynchronizationScope SynchScope) {
   llvm_unreachable("Unknown synch scope");
 }
 
-// printInstruction - This member is called for each Instruction in a function.
-void CppWriter::printInstruction(const Instruction *I,
-                                 const std::string& bbname) {
+// generateInstruction - This member is called for each Instruction in a function.
+std::string CppWriter::generateInstruction(const Instruction *I) {
+  std::string text = "UNKNOWN_INSTRUCTION";
+  std::string bbname = "NO_BBNAME";
   std::string iName(getCppName(I));
 
   // Before we emit this instruction, we need to take care of generating any
@@ -1009,8 +1012,7 @@ void CppWriter::printInstruction(const Instruction *I,
 
   case Instruction::Ret: {
     const ReturnInst* ret =  cast<ReturnInst>(I);
-    Out << "ReturnInst::Create(mod->getContext(), "
-        << (ret->getReturnValue() ? opNames[0] + ", " : "") << bbname << ");";
+    text = std::string("return") + (ret->getReturnValue() ? " " + opNames[0] : "") + ";";
     break;
   }
   case Instruction::Br: {
@@ -1187,16 +1189,7 @@ void CppWriter::printInstruction(const Instruction *I,
   }
   case Instruction::Alloca: {
     const AllocaInst* allocaI = cast<AllocaInst>(I);
-    Out << "AllocaInst* " << iName << " = new AllocaInst("
-        << getCppName(allocaI->getAllocatedType()) << ", ";
-    if (allocaI->isArrayAllocation())
-      Out << opNames[0] << ", ";
-    Out << "\"";
-    printEscapedString(allocaI->getName());
-    Out << "\", " << bbname << ");";
-    if (allocaI->getAlignment())
-      nl(Out) << iName << "->setAlignment("
-          << allocaI->getAlignment() << ");";
+    text = iName + " = STACKTOP; STACKTOP += sizeof(" + getCppName(allocaI->getAllocatedType()) + ");";
     break;
   }
   case Instruction::Load: {
@@ -1218,21 +1211,7 @@ void CppWriter::printInstruction(const Instruction *I,
     break;
   }
   case Instruction::Store: {
-    const StoreInst* store = cast<StoreInst>(I);
-    Out << "StoreInst* " << iName << " = new StoreInst("
-        << opNames[0] << ", "
-        << opNames[1] << ", "
-        << (store->isVolatile() ? "true" : "false")
-        << ", " << bbname << ");";
-    if (store->getAlignment())
-      nl(Out) << iName << "->setAlignment("
-              << store->getAlignment() << ");";
-    if (store->isAtomic()) {
-      StringRef Ordering = ConvertAtomicOrdering(store->getOrdering());
-      StringRef CrossThread = ConvertAtomicSynchScope(store->getSynchScope());
-      nl(Out) << iName << "->setAtomic("
-              << Ordering << ", " << CrossThread << ");";
-    }
+    text = "HEAP32[" + opNames[0] + ">>2] = " + opNames[1] + ";";
     break;
   }
   case Instruction::GetElementPtr: {
@@ -1312,43 +1291,7 @@ void CppWriter::printInstruction(const Instruction *I,
   }
   case Instruction::Call: {
     const CallInst* call = cast<CallInst>(I);
-    if (const InlineAsm* ila = dyn_cast<InlineAsm>(call->getCalledValue())) {
-      Out << "InlineAsm* " << getCppName(ila) << " = InlineAsm::get("
-          << getCppName(ila->getFunctionType()) << ", \""
-          << ila->getAsmString() << "\", \""
-          << ila->getConstraintString() << "\","
-          << (ila->hasSideEffects() ? "true" : "false") << ");";
-      nl(Out);
-    }
-    if (call->getNumArgOperands() > 1) {
-      Out << "std::vector<Value*> " << iName << "_params;";
-      nl(Out);
-      for (unsigned i = 0; i < call->getNumArgOperands(); ++i) {
-        Out << iName << "_params.push_back(" << opNames[i] << ");";
-        nl(Out);
-      }
-      Out << "CallInst* " << iName << " = CallInst::Create("
-          << opNames[call->getNumArgOperands()] << ", "
-          << iName << "_params, \"";
-    } else if (call->getNumArgOperands() == 1) {
-      Out << "CallInst* " << iName << " = CallInst::Create("
-          << opNames[call->getNumArgOperands()] << ", " << opNames[0] << ", \"";
-    } else {
-      Out << "CallInst* " << iName << " = CallInst::Create("
-          << opNames[call->getNumArgOperands()] << ", \"";
-    }
-    printEscapedString(call->getName());
-    Out << "\", " << bbname << ");";
-    nl(Out) << iName << "->setCallingConv(";
-    printCallingConv(call->getCallingConv());
-    Out << ");";
-    nl(Out) << iName << "->setTailCall("
-        << (call->isTailCall() ? "true" : "false");
-    Out << ");";
-    nl(Out);
-    printAttributes(call->getAttributes(), iName);
-    Out << iName << "->setAttributes(" << iName << "_PAL);";
-    nl(Out);
+    text = std::string(call->getName().data()) + " = " + opNames[call->getNumArgOperands()] + "(" + opNames[0] + ");";
     break;
   }
   case Instruction::Select: {
@@ -1492,6 +1435,7 @@ void CppWriter::printInstruction(const Instruction *I,
   DefinedValues.insert(I);
   nl(Out);
   delete [] opNames;
+  return text;
 }
 
 // Print out the types, constants and declarations needed by one function
@@ -1672,32 +1616,41 @@ void CppWriter::printFunctionBody(const Function *F) {
     }
   }
 
-  // Create all the basic blocks
-  nl(Out);
+  // Prepare relooper
+  static char *buffer = new char[10*1024*1024]; // XXX
+  Relooper::SetOutputBuffer(buffer);
+  Relooper R;
+  Block *Entry = NULL;
+  std::map<const BasicBlock*, Block*> LLVMToRelooper;
+
+  // Create relooper blocks with their contents
   for (Function::const_iterator BI = F->begin(), BE = F->end();
        BI != BE; ++BI) {
-    std::string bbname(getCppName(BI));
-    Out << "BasicBlock* " << bbname <<
-           " = BasicBlock::Create(mod->getContext(), \"";
-    if (BI->hasName())
-      printEscapedString(BI->getName());
-    Out << "\"," << getCppName(BI->getParent()) << ",0);";
-    nl(Out);
-  }
-
-  // Output all of its basic blocks... for the function
-  for (Function::const_iterator BI = F->begin(), BE = F->end();
-       BI != BE; ++BI) {
-    std::string bbname(getCppName(BI));
-    nl(Out) << "// Block " << BI->getName() << " (" << bbname << ")";
-    nl(Out);
-
-    // Output all of the instructions in the basic block...
+    std::string contents = "";
     for (BasicBlock::const_iterator I = BI->begin(), E = BI->end();
          I != E; ++I) {
-      printInstruction(I,bbname);
+      contents += generateInstruction(I) + "\n";
+    }
+    Block *Curr = new Block(contents.c_str());
+    const BasicBlock *BB = &*BI;
+    LLVMToRelooper[BB] = Curr;
+    R.AddBlock(Curr);
+    if (!Entry) Entry = Curr;
+  }
+
+  // Create branchings
+  for (Function::const_iterator BI = F->begin(), BE = F->end();
+       BI != BE; ++BI) {
+    for (BasicBlock::const_iterator I = BI->begin(), E = BI->end();
+         I != E; ++I) {
+      // if I is a branch, do something XXX
     }
   }
+
+  // Calculate relooping and print
+  R.Calculate(Entry);
+  R.Render();
+  Out << buffer;
 
   // Loop over the ForwardRefs and resolve them now that all instructions
   // are generated.
