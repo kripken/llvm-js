@@ -431,9 +431,10 @@ std::string CppWriter::getCppName(const Value* val) {
   if (I != ValueNames.end() && I->first == val)
     return  I->second;
 
-  if (val->hasName())
+  if (val->hasName()) {
     name = std::string("_") + val->getName().str();
-  else {
+    sanitize(name);
+  } else {
     if (const GlobalVariable* GV = dyn_cast<GlobalVariable>(val)) {
       name = std::string("gvar_") +
         getTypePrefix(GV->getType()->getElementType());
@@ -458,12 +459,12 @@ std::string CppWriter::getCppName(const Value* val) {
       name = getTypePrefix(val->getType());
     }
     name += utostr(uniqueNum++);
+    sanitize(name);
+    NameSet::iterator NI = UsedNames.find(name);
+    if (NI != UsedNames.end())
+      name += std::string("_") + utostr(uniqueNum++);
+    UsedNames.insert(name);
   }
-  sanitize(name);
-  NameSet::iterator NI = UsedNames.find(name);
-  if (NI != UsedNames.end())
-    name += std::string("_") + utostr(uniqueNum++);
-  UsedNames.insert(name);
   return ValueNames[val] = name;
 }
 
