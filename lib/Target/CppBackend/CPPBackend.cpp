@@ -161,6 +161,10 @@ namespace {
     std::string getOpName(const Value*);
 
     void printModuleBody();
+
+    unsigned stackAlign(unsigned x) {
+      return x + (x%4 != 0 ? 4 - x%4 : 0);
+    }
   };
 } // end anonymous namespace.
 
@@ -1189,7 +1193,7 @@ std::string CppWriter::generateInstruction(const Instruction *I) {
   }
   case Instruction::Alloca: {
     const AllocaInst* allocaI = cast<AllocaInst>(I);
-    text = iName + " = STACKTOP; STACKTOP += sizeof(" + getCppName(allocaI->getAllocatedType()) + ");";
+    text = iName + " = STACKTOP; STACKTOP += " + Twine(stackAlign(allocaI->getAllocatedType()->getScalarSizeInBits()/8)).str() + ";";
     break;
   }
   case Instruction::Load: {
