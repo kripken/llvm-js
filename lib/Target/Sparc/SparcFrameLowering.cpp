@@ -27,6 +27,7 @@
 using namespace llvm;
 
 void SparcFrameLowering::emitPrologue(MachineFunction &MF) const {
+/*
   MachineBasicBlock &MBB = MF.front();
   MachineFrameInfo *MFI = MF.getFrameInfo();
   const SparcInstrInfo &TII =
@@ -65,10 +66,12 @@ void SparcFrameLowering::emitPrologue(MachineFunction &MF) const {
     BuildMI(MBB, MBBI, dl, TII.get(SP::SAVErr), SP::O6)
       .addReg(SP::O6).addReg(SP::G1);
   }
+*/
 }
 
 void SparcFrameLowering::emitEpilogue(MachineFunction &MF,
                                   MachineBasicBlock &MBB) const {
+/*
   MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
   const SparcInstrInfo &TII =
     *static_cast<const SparcInstrInfo*>(MF.getTarget().getInstrInfo());
@@ -77,4 +80,5 @@ void SparcFrameLowering::emitEpilogue(MachineFunction &MF,
          "Can only put epilog before 'retl' instruction!");
   BuildMI(MBB, MBBI, dl, TII.get(SP::RESTORErr), SP::G0).addReg(SP::G0)
     .addReg(SP::G0);
+*/
 }
