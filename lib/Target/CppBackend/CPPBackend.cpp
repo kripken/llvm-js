@@ -1773,9 +1773,7 @@ void CppWriter::printModuleBody() {
   for (Module::const_iterator I = TheModule->begin(), E = TheModule->end();
        I != E; ++I) {
     if (!I->isDeclaration()) {
-      nl(Out) << "// Function: " << I->getName() << " (" << getCppName(I)
-              << ")";
-      nl(Out) << "{";
+      Out << "function _" << I->getName() << "() {";
       nl(Out,1);
       printFunctionBody(I);
       nl(Out,-1) << "}";
